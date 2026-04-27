@@ -169,7 +169,14 @@
             if(headEl) headEl.innerText = (p.title || "JUDUL").toUpperCase();
 
             const footEl = document.getElementById(`displayFooter-${idx}`);
-            if(footEl) footEl.innerText = (p.link || "").toLowerCase();
+           if (footEl) {
+    if (p.link && p.link.trim() !== "") {
+        footEl.style.display = "block";
+        footEl.innerText = p.link.toLowerCase();
+    } else {
+        footEl.style.display = "none";
+    }
+}
             
             const imgDiv = document.getElementById(`imgContainer-${idx}`);
             const placeholder = document.getElementById(`placeholder-${idx}`);
