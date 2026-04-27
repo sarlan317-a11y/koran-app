@@ -1,244 +1,499 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Generator Koran Otomatis - Luwu Raya Pos</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Koran Otomatis - Luwu Raya Pos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        function getProxyUrl(url) {
+            if (!url) return "";
+            return `https://images.weserv.nl/?url=${encodeURIComponent(url.replace('https://', '').replace('http://', ''))}`;
+        }
 
-<script src="https://cdn.tailwindcss.com"></script>
+        const DEFAULT_LOGO = "https://luwurayapos.com/wp-content/uploads/2026/04/image-1-copy.png";
+        const DEFAULT_BANNER = "https://luwurayapos.com/wp-content/uploads/2026/04/Copy-of-Jasa-Promosi-Iklan-2.jpg";
+        
+        let pagesData = [{
+            title: "",
+            content: "",
+            newsImage: "",
+            imgPosX: 50,
+            imgPosY: 50,
+            link: "www.luwurayapos.com",
+            date: new Date().toISOString().split('T')[0],
+            fontSize: 10,
+            fontFamily: 'serif'
+        }];
+        let currentPageIndex = 0;
 
-<script>
-// ✅ FIX: tanpa proxy (biar stabil di Vercel)
-function getProxyUrl(url) {
-    return url || "";
-}
+        window.addPage = function() {
+            pagesData.push({
+                title: "",
+                content: "",
+                newsImage: "",
+                imgPosX: 50,
+                imgPosY: 50,
+                link: pagesData[0].link,
+                date: pagesData[0].date,
+                fontSize: pagesData[0].fontSize,
+                fontFamily: 'serif'
+            });
+            currentPageIndex = pagesData.length - 1;
+            refreshUI();
+        };
 
-const DEFAULT_LOGO = "https://luwurayapos.com/wp-content/uploads/2026/04/image-1-copy.png";
-const DEFAULT_BANNER = "https://luwurayapos.com/wp-content/uploads/2026/04/Copy-of-Jasa-Promosi-Iklan-2.jpg";
+        window.removePage = function(e, index) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            if (pagesData.length <= 1) return;
+            pagesData.splice(index, 1);
+            if (currentPageIndex >= pagesData.length) currentPageIndex = pagesData.length - 1;
+            refreshUI();
+        };
 
-let pagesData = [{
-    title: "",
-    content: "",
-    newsImage: "",
-    imgPosX: 50,
-    imgPosY: 50,
-    link: "www.luwurayapos.com",
-    date: new Date().toISOString().split('T')[0],
-    fontSize: 10
-}];
+        window.goToPage = function(index) {
+            currentPageIndex = index;
+            updatePageNavigation();
+            syncEditorWithPage();
+            const el = document.getElementById(`page-wrapper-${index}`);
+            if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
 
-let currentPageIndex = 0;
+        function updatePageNavigation() {
+            const container = document.getElementById('pageTabs');
+            if (!container) return;
+            container.innerHTML = pagesData.map((_, i) => `
+                <div class="flex items-center">
+                    <button onclick="goToPage(${i})"
+                        class="px-3 py-2 text-[10px] font-black border transition-all
+                        ${currentPageIndex === i ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'} 
+                        ${pagesData.length > 1 ? 'rounded-l' : 'rounded'}">
+                        HAL ${i+1}
+                    </button>
+                    ${pagesData.length > 1 ? `
+                    <button onclick="removePage(event, ${i})"
+                        class="px-2 py-2 text-[10px] bg-red-50 text-red-500 border-y border-r border-gray-200 rounded-r hover:bg-red-600 hover:text-white transition-all">
+                        ×
+                    </button>` : ''}
+                </div>
+            `).join('');
+        }
 
-// ================== PAGE ==================
-window.addPage = function() {
-    pagesData.push({...pagesData[0]});
-    currentPageIndex = pagesData.length - 1;
-    refreshUI();
-};
+        function syncEditorWithPage() {
+            const p = pagesData[currentPageIndex];
+            if (!p) return;
+            document.getElementById('inputDate').value = p.date || '';
+            document.getElementById('inputTitle').value = p.title || '';
+            document.getElementById('inputContent').value = p.content || '';
+            document.getElementById('inputLink').value = p.link || 'www.luwurayapos.com';
+            document.getElementById('inputNewsImgUrl').value = p.newsImage || '';
+            document.getElementById('imgPosX').value = p.imgPosX || 50;
+            document.getElementById('imgPosY').value = p.imgPosY || 50;
+            document.getElementById('inputFontSize').value = p.fontSize || 10;
+            document.getElementById('fontSizeVal').innerText = (p.fontSize || 10) + 'pt';
+            document.getElementById('currentPageLabel').innerText = `EDIT HALAMAN ${currentPageIndex + 1}`;
+        }
 
-window.removePage = function(e, index) {
-    if (e) e.stopPropagation();
-    if (pagesData.length <= 1) return;
-    pagesData.splice(index, 1);
-    currentPageIndex = Math.max(0, currentPageIndex - 1);
-    refreshUI();
-};
+        window.updateCurrentPageData = function() {
+            const p = pagesData[currentPageIndex];
+            if (!p) return;
+            p.date = document.getElementById('inputDate').value;
+            p.title = document.getElementById('inputTitle').value;
+            p.content = document.getElementById('inputContent').value;
+            p.link = document.getElementById('inputLink').value;
+            p.newsImage = document.getElementById('inputNewsImgUrl').value;
+            p.imgPosX = document.getElementById('imgPosX').value;
+            p.imgPosY = document.getElementById('imgPosY').value;
+            p.fontSize = parseFloat(document.getElementById('inputFontSize').value);
+            
+            document.getElementById('fontSizeVal').innerText = p.fontSize + 'pt';
+            
+            renderFlow();
+        };
 
-window.goToPage = function(index) {
-    currentPageIndex = index;
-    syncEditorWithPage();
-    renderFlow();
-};
+        function renderFlow() {
+            renderAllPagesContainer();
+            setTimeout(() => {
+                for (let i = 0; i < pagesData.length; i++) {
+                    renderSinglePage(i);
+                }
+            }, 50);
+        }
 
-// ================== UPDATE ==================
-window.updateCurrentPageData = function() {
-    const p = pagesData[currentPageIndex];
+        function renderAllPagesContainer() {
+            const container = document.getElementById('allPagesContainer');
+            const proxyLogo = getProxyUrl(DEFAULT_LOGO);
+            const proxyBanner = getProxyUrl(DEFAULT_BANNER);
 
-    p.title = document.getElementById('inputTitle').value;
-    p.content = document.getElementById('inputContent').value;
-    p.link = document.getElementById('inputLink').value;
-    p.date = document.getElementById('inputDate').value;
-    p.newsImage = document.getElementById('inputNewsImgUrl').value;
-    p.imgPosX = document.getElementById('imgPosX').value;
-    p.imgPosY = document.getElementById('imgPosY').value;
-    p.fontSize = document.getElementById('inputFontSize').value;
+            container.innerHTML = pagesData.map((_, i) => `
+                <div id="page-wrapper-${i}" class="preview-scale-wrapper">
+                    <div id="newspaperPage-${i}" class="newspaper-page shadow-2xl">
+                        <div class="masthead">
+                            <div class="logo-container"><img src="${proxyLogo}" crossorigin="anonymous"></div>
+                            <div class="masthead-date" id="displayDate-${i}">TANGGAL</div>
+                        </div>
+                        <div class="full-banner-container"><img class="full-banner-img" src="${proxyBanner}" crossorigin="anonymous"></div>
+                        <h4 class="headline" id="mainHeadline-${i}" style="font-size:14px;">JUDUL</h4>
+                        <div class="content-body" id="body-${i}">
+                            <div class="col-main" id="col1-${i}"></div>
+                            <div class="col-side">
+                                <div class="news-image-area border border-black mb-3 overflow-hidden">
+                                    <div id="imgContainer-${i}" class="w-full h-[210px] bg-cover bg-no-repeat"></div>
+                                    <div id="placeholder-${i}" class="w-full h-[210px] flex items-center justify-center bg-gray-100 text-[8px] font-bold uppercase">FOTO HAL ${i+1}</div>
+                                </div>
+                                <div class="side-grid">
+                                    <div id="col2-${i}"></div>
+                                    <div id="col3-${i}"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="locked-footer border-t border-gray-300 pt-1 mt-auto">
+                            <span id="displayFooter-${i}" class="text-[8px] italic text-gray-500"></span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            updatePageNavigation();
+        }
 
-    document.getElementById('fontSizeVal').innerText = p.fontSize + 'pt';
+        function renderSinglePage(idx) {
+            const p = pagesData[idx];
+            if(!p) return;
 
-    renderFlow();
-};
+            const dateEl = document.getElementById(`displayDate-${idx}`);
+            if(dateEl && p.date) dateEl.innerText = new Date(p.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+            
+            const headEl = document.getElementById(`mainHeadline-${idx}`);
+            if(headEl) headEl.innerText = (p.title || "JUDUL").toUpperCase();
 
-// ================== RENDER ==================
-function renderFlow() {
-    const container = document.getElementById('allPagesContainer');
+            const footEl = document.getElementById(`displayFooter-${idx}`);
+            if(footEl) footEl.innerText = (p.link || "www.luwurayapos.com").toLowerCase();
+            
+            const imgDiv = document.getElementById(`imgContainer-${idx}`);
+            const placeholder = document.getElementById(`placeholder-${idx}`);
+            if(imgDiv && placeholder) {
+                if(p.newsImage) {
+                    imgDiv.style.backgroundImage = `url('${getProxyUrl(p.newsImage)}')`;
+                    imgDiv.style.backgroundPosition = `${p.imgPosX}% ${p.imgPosY}%`;
+                    imgDiv.style.display = 'block'; placeholder.style.display = 'none';
+                } else {
+                    imgDiv.style.display = 'none'; placeholder.style.display = 'flex';
+                }
+            }
 
-    container.innerHTML = pagesData.map((p, i) => `
-    <div class="preview-scale-wrapper">
-        <div class="newspaper-page">
-            <div class="masthead">
-                <img src="${DEFAULT_LOGO}" height="50">
-                <div>${new Date(p.date).toLocaleDateString('id-ID')}</div>
+            const c1 = document.getElementById(`col1-${idx}`), 
+                  c2 = document.getElementById(`col2-${idx}`), 
+                  c3 = document.getElementById(`col3-${idx}`);
+            
+            const size = p.fontSize || 10;
+            const fontFam = '"Noto Serif", serif';
+            
+            [c1, c2, c3].forEach(c => { 
+                if(!c) return;
+                c.innerHTML = ''; 
+                c.style.fontSize = size + 'pt'; 
+                c.style.fontFamily = fontFam;
+            });
+
+            const LIMITS = { col1: 740, col2: 490, col3: 490 };
+            
+            let targetCol = c1;
+            let targetKey = 'col1';
+            if(!targetCol) return;
+
+            let currentP = document.createElement('p');
+            currentP.className = "text-justify mb-3 leading-[1.4]";
+            targetCol.appendChild(currentP);
+
+            const paragraphs = p.content.split('\n');
+            let isFull = false;
+
+            for (let i = 0; i < paragraphs.length; i++) {
+                if(isFull) break;
+                
+                const words = paragraphs[i].trim().split(/\s+/);
+                if(words[0] === "" && words.length === 1) {
+                    const spacer = document.createElement('div');
+                    spacer.style.height = '0.5em';
+                    targetCol.appendChild(spacer);
+                    continue;
+                }
+
+                for (let j = 0; j < words.length; j++) {
+                    if(isFull) break;
+
+                    const span = document.createElement('span');
+                    span.innerText = words[j] + " ";
+                    currentP.appendChild(span);
+
+                    if (targetCol.scrollHeight > LIMITS[targetKey]) {
+                        currentP.removeChild(span);
+                        
+                        if (targetKey === 'col1') {
+                            targetKey = 'col2'; targetCol = c2;
+                        } else if (targetKey === 'col2') {
+                            targetKey = 'col3'; targetCol = c3;
+                        } else {
+                            isFull = true;
+                            continue;
+                        }
+
+                        if(targetCol) {
+                            currentP = document.createElement('p');
+                            currentP.className = "text-justify mb-3 leading-[1.4]";
+                            targetCol.appendChild(currentP);
+                            currentP.appendChild(span);
+                        }
+                    }
+                }
+
+                if(!isFull && i < paragraphs.length - 1 && targetCol) {
+                    currentP = document.createElement('p');
+                    currentP.className = "text-justify mb-3 leading-[1.4]";
+                    targetCol.appendChild(currentP);
+                }
+            }
+        }
+
+        // Perbaikan Fungsi Cetak: Memastikan dialog muncul dengan mengubah overflow body
+        window.triggerPrint = function() {
+            // Paksa overflow body menjadi visible agar window.print() dapat membaca seluruh konten
+            document.body.style.overflow = "visible";
+            
+            setTimeout(() => {
+                try {
+                    window.print();
+                } catch (e) {
+                    console.error("Gagal membuka dialog cetak:", e);
+                } finally {
+                    // Kembalikan ke normal setelah sedikit jeda (dialog print biasanya memblokir eksekusi)
+                    setTimeout(() => {
+                        document.body.style.overflow = "hidden";
+                    }, 500);
+                }
+            }, 100);
+        };
+
+        // Otomatisasi handling overflow saat cetak
+        window.onbeforeprint = () => { document.body.style.overflow = "visible"; };
+        window.onafterprint = () => { document.body.style.overflow = "hidden"; };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            ['inputTitle', 'inputContent', 'inputLink', 'inputDate', 'imgPosX', 'imgPosY', 'inputNewsImgUrl', 'inputFontSize'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.addEventListener('input', updateCurrentPageData);
+            });
+            refreshUI();
+        });
+
+        function refreshUI() { renderFlow(); syncEditorWithPage(); }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&family=Noto+Serif:wght@400;700&display=swap');
+        
+        body { background: #111827; height: 100vh; display: flex; overflow: hidden; margin: 0; padding: 0;}
+        
+        /* Panel Editor */
+        .editor-panel { width: 380px; min-width: 380px; background: white; overflow-y: auto; padding: 20px; border-right: 4px solid #2563eb; z-index: 10; }
+        
+        /* Panel Preview */
+        .preview-panel { 
+            flex: 1; 
+            overflow-y: auto; 
+            background: #1f2937; 
+            padding: 40px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+
+        #allPagesContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+            max-width: fit-content;
+        }
+        
+        .newspaper-page { 
+            width: 210mm; 
+            height: 297mm; 
+            background: white; 
+            padding: 10mm 15mm 10mm 15mm;
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            color: #1a1a1a;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            flex-shrink: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        .preview-scale-wrapper { 
+            transform: scale(0.85); 
+            transform-origin: top center;
+            margin-bottom: -40mm;
+        }
+
+        @media (max-width: 1600px) {
+            .preview-scale-wrapper {
+                transform: scale(0.7);
+                margin-bottom: -80mm;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .preview-scale-wrapper {
+                transform: scale(0.5);
+                margin-bottom: -140mm;
+            }
+        }
+        
+        .masthead { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 3px solid black; 
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .logo-container img { height: 50px; }
+        .masthead-date { font-weight: 900; font-size: 10pt; color: #1e40af; }
+        
+        .full-banner-container { border-bottom: 1px solid black; margin-bottom: 10px; padding-bottom: 10px; }
+        .full-banner-img { width: 100%; height: 90px; object-fit: contain; }
+        
+        .headline { font-size: 22pt; font-weight: 900; text-align: center; line-height: 1.1; margin-bottom: 15px; color: #1e3a8a; min-height: 1.2em; }
+        
+        .content-body { display: grid; grid-template-columns: 1fr 1.8fr; gap: 20px; flex: 1; overflow: hidden; }
+        .col-main { height: 740px; overflow: hidden; }
+        .side-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; height: 490px; overflow: hidden; }
+        
+        /* CSS KHUSUS CETAK - DIPERKUAT */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            html, body {
+                height: auto !important;
+                background: white !important;
+                overflow: visible !important;
+            }
+            * {
+                overflow: visible !important;
+            }
+            .editor-panel { display: none !important; }
+            .preview-panel {
+                display: block !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                overflow: visible !important;
+            }
+            #allPagesContainer {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .preview-scale-wrapper {
+                transform: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-after: always !important;
+                width: 100% !important;
+            }
+            .newspaper-page {
+                box-shadow: none !important;
+                margin: 0 !important;
+                border: none !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .news-image-area div {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="editor-panel shadow-xl">
+        <h2 class="font-black text-blue-600 mb-4 tracking-tighter italic uppercase text-xl border-b-2 border-blue-600 pb-1">Luwurayapos.com</h2>
+        
+        <div class="space-y-4">
+            <div id="pageTabs" class="flex flex-wrap gap-1 mb-4"></div>
+            <button onclick="addPage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold text-xs uppercase transition-colors">+ Halaman Baru</button>
+            <hr class="border-gray-100">
+            
+            <div id="currentPageLabel" class="text-[10px] font-black text-gray-400 uppercase tracking-widest"></div>
+            
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Tanggal Terbit</label>
+                <input type="date" id="inputDate" class="w-full border p-2 rounded font-bold text-sm outline-blue-500">
             </div>
 
-            <img src="${DEFAULT_BANNER}" style="width:100%;height:90px;object-fit:contain">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Judul Utama</label>
+                <input type="text" id="inputTitle" placeholder="JUDUL BERITA" class="w-full border p-2 rounded font-black uppercase text-sm outline-blue-500">
+            </div>
 
-            <h2 class="headline">${p.title || 'JUDUL'}</h2>
-
-            <div class="content-body">
-                <div style="flex:1;font-size:${p.fontSize}pt">
-                    ${p.content.replace(/\n/g,"<br>")}
+            <div class="bg-gray-50 p-3 rounded border border-gray-200 space-y-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Foto Berita (URL)</label>
+                    <input type="text" id="inputNewsImgUrl" placeholder="https://..." class="w-full border p-2 rounded text-[10px] outline-blue-500">
                 </div>
-
-                <div style="width:40%">
-                    ${p.newsImage ? `
-                        <div style="
-                            height:200px;
-                            background-image:url('${p.newsImage}');
-                            background-size:cover;
-                            background-position:${p.imgPosX}% ${p.imgPosY}%;
-                        "></div>
-                    ` : `<div style="height:200px;background:#eee;display:flex;align-items:center;justify-content:center">FOTO</div>`}
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Posisi Gambar</label>
+                    <div class="flex gap-2">
+                        <input type="range" id="imgPosX" title="Geser Horizontal" class="w-1/2 accent-gray-400">
+                        <input type="range" id="imgPosY" title="Geser Vertikal" class="w-1/2 accent-gray-400">
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-gray-200">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[10px] font-black uppercase text-gray-500">Ukuran Huruf</label>
+                        <span class="text-[10px] font-black text-blue-600" id="fontSizeVal">10pt</span>
+                    </div>
+                    <input type="range" id="inputFontSize" min="8" max="15" step="0.2" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
                 </div>
             </div>
 
-            <div class="footer">${p.link}</div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Isi Berita</label>
+                <textarea id="inputContent" rows="12" placeholder="Tulis berita di sini..." class="w-full border p-3 rounded text-xs leading-relaxed outline-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"></textarea>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Link Footer</label>
+                <input type="text" id="inputLink" placeholder="www.luwurayapos.com" class="w-full border p-2 rounded text-xs outline-blue-500">
+            </div>
+
+            <div class="flex gap-2 pt-4 sticky bottom-0 bg-white py-2 border-t mt-4">
+                <button type="button" onclick="triggerPrint()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded font-black text-xs uppercase shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Cetak Koran
+                </button>
+            </div>
         </div>
     </div>
-    `).join('');
-}
 
-// ================== SYNC ==================
-function syncEditorWithPage() {
-    const p = pagesData[currentPageIndex];
-
-    inputTitle.value = p.title;
-    inputContent.value = p.content;
-    inputLink.value = p.link;
-    inputDate.value = p.date;
-    inputNewsImgUrl.value = p.newsImage;
-    imgPosX.value = p.imgPosX;
-    imgPosY.value = p.imgPosY;
-    inputFontSize.value = p.fontSize;
-
-    fontSizeVal.innerText = p.fontSize + 'pt';
-}
-
-// ================== PRINT FIX ==================
-window.triggerPrint = function() {
-    window.print();
-};
-
-// ================== INIT ==================
-window.onload = () => {
-    document.querySelectorAll("input, textarea").forEach(el=>{
-        el.addEventListener("input", updateCurrentPageData);
-    });
-    refreshUI();
-};
-
-function refreshUI() {
-    renderFlow();
-    syncEditorWithPage();
-}
-</script>
-
-<style>
-body {
-    display: flex;
-    margin: 0;
-    background: #111827;
-    font-family: Arial;
-}
-
-/* PANEL */
-.editor-panel {
-    width: 350px;
-    background: white;
-    padding: 15px;
-    overflow-y: auto;
-}
-
-.preview-panel {
-    flex: 1;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-}
-
-/* PAGE */
-.newspaper-page {
-    width: 210mm;
-    height: 297mm;
-    background: white;
-    padding: 10mm;
-    display: flex;
-    flex-direction: column;
-}
-
-.headline {
-    text-align: center;
-    font-weight: bold;
-    margin: 10px 0;
-}
-
-.content-body {
-    display: flex;
-    gap: 10px;
-    flex: 1;
-}
-
-.footer {
-    font-size: 10px;
-    text-align: center;
-}
-
-/* PRINT FIX */
-@media print {
-    body {
-        background: white !important;
-    }
-
-    .editor-panel {
-        display: none;
-    }
-
-    .preview-panel {
-        padding: 0;
-    }
-}
-</style>
-</head>
-
-<body>
-
-<div class="editor-panel">
-    <h2>Editor</h2>
-
-    <input id="inputTitle" placeholder="Judul"><br><br>
-    <textarea id="inputContent" placeholder="Isi berita"></textarea><br><br>
-
-    <input id="inputNewsImgUrl" placeholder="URL Gambar"><br><br>
-
-    <label>X</label>
-    <input type="range" id="imgPosX" min="0" max="100"><br>
-
-    <label>Y</label>
-    <input type="range" id="imgPosY" min="0" max="100"><br>
-
-    <label>Font</label>
-    <input type="range" id="inputFontSize" min="8" max="15">
-    <span id="fontSizeVal">10pt</span><br><br>
-
-    <input id="inputDate" type="date"><br><br>
-    <input id="inputLink" placeholder="Link"><br><br>
-
-    <button onclick="addPage()">+ Halaman</button>
-    <button onclick="triggerPrint()">Cetak</button>
-</div>
-
-<div class="preview-panel">
-    <div id="allPagesContainer"></div>
-</div>
-
+    <div class="preview-panel" id="previewPanel">
+        <div id="allPagesContainer"></div>
+    </div>
 </body>
 </html>
